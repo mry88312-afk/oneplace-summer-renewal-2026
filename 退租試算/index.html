@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>租客退租費用試算</title>
+<style>
+  :root{
+    --bg:#F4F6F6;
+    --surface:#FFFFFF;
+    --ink:#15302F;
+    --ink-soft:#476160;
+    --muted:#7D9594;
+    --line:#E2EAE9;
+    --line-strong:#CBDAD8;
+    --teal:#0E7C7B;
+    --teal-deep:#0A5957;
+    --teal-soft:#E3F1F0;
+    --refund:#0E7C7B;     /* 退給租客 */
+    --refund-soft:#E3F1F0;
+    --charge:#B5481F;     /* 向租客收 */
+    --charge-soft:#FBEBE3;
+    --amber:#A06A00;
+    --radius:14px;
+    --shadow:0 1px 2px rgba(21,48,47,.04),0 8px 24px rgba(21,48,47,.06);
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Microsoft JhengHei","PingFang TC","Noto Sans TC","Heiti TC",system-ui,sans-serif;
+    line-height:1.6;font-variant-numeric:tabular-nums;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:28px 20px 80px;}
+
+  /* Header */
+  header.page{margin-bottom:22px;}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;
+    letter-spacing:.14em;color:var(--teal);background:var(--teal-soft);
+    padding:5px 11px;border-radius:999px;}
+  .eyebrow::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--teal);}
+  h1.title{font-size:30px;line-height:1.2;margin:14px 0 6px;font-weight:800;letter-spacing:-.01em;}
+  .sub{color:var(--ink-soft);font-size:15px;margin:0;max-width:62ch;}
+
+  /* Layout */
+  .grid{display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start;margin-top:24px;}
+  @media(max-width:880px){.grid{grid-template-columns:1fr;}}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:20px;}
+  .card + .card{margin-top:18px;}
+  .card-h{display:flex;align-items:baseline;gap:10px;margin:0 0 16px;}
+  .card-h .n{font-size:12px;font-weight:800;color:#fff;background:var(--teal);
+    width:22px;height:22px;border-radius:7px;display:grid;place-items:center;letter-spacing:0;}
+  .card-h h2{font-size:16px;margin:0;font-weight:800;}
+  .card-h .hint{font-size:12px;color:var(--muted);margin-left:auto;font-weight:500;}
+
+  /* Fields */
+  .field{margin-bottom:14px;}
+  .field:last-child{margin-bottom:0;}
+  .field > label{display:block;font-size:13px;font-weight:700;color:var(--ink-soft);margin-bottom:6px;}
+  .field .desc{font-size:11.5px;color:var(--muted);font-weight:500;margin-left:6px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media(max-width:520px){.row2{grid-template-columns:1fr;}}
+
+  input[type="number"],input[type="date"],input[type="text"]{
+    width:100%;font:inherit;font-size:15px;color:var(--ink);
+    padding:10px 12px;border:1px solid var(--line-strong);border-radius:9px;
+    background:#FCFDFD;transition:border-color .15s,box-shadow .15s;
+  }
+  input:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft);}
+  input[type="number"]{text-align:right;font-variant-numeric:tabular-nums;}
+  .with-unit{position:relative;}
+  .with-unit input{padding-left:40px;}
+  .with-unit .unit{position:absolute;left:12px;top:50%;transform:translateY(-50%);
+    color:var(--muted);font-size:13px;pointer-events:none;font-weight:600;}
+
+  /* checkbox */
+  .check{display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid var(--line-strong);
+    border-radius:9px;background:#FCFDFD;cursor:pointer;user-select:none;}
+  .check input{width:18px;height:18px;accent-color:var(--teal);cursor:pointer;}
+  .check .t{font-size:14px;font-weight:700;color:var(--ink);}
+  .check .s{font-size:12px;color:var(--muted);margin-left:auto;font-weight:500;}
+
+  .divider{height:1px;background:var(--line);margin:18px 0;}
+  .subhead{font-size:12px;font-weight:800;letter-spacing:.08em;color:var(--muted);
+    text-transform:none;margin:0 0 12px;}
+
+  /* timeline */
+  .tl{margin-top:6px;padding:16px;border:1px dashed var(--line-strong);border-radius:11px;background:#FBFCFC;}
+  .tl-track{display:flex;align-items:stretch;gap:0;border-radius:8px;overflow:hidden;
+    border:1px solid var(--line);background:#fff;min-height:54px;}
+  .tl-seg{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;
+    padding:8px 6px;text-align:center;}
+  .tl-seg .lab{font-size:11px;color:var(--ink-soft);font-weight:700;}
+  .tl-seg .day{font-size:12px;color:var(--muted);margin-top:2px;}
+  .tl-seg.gap-refund{background:var(--refund-soft);}
+  .tl-seg.gap-charge{background:var(--charge-soft);}
+  .tl-seg.gap-refund .lab{color:var(--refund);}
+  .tl-seg.gap-charge .lab{color:var(--charge);}
+  .tl-dates{display:flex;justify-content:space-between;margin-top:8px;font-size:11.5px;color:var(--muted);font-weight:600;}
+
+  /* result */
+  .result{position:sticky;top:20px;}
+  .verdict{border-radius:var(--radius);padding:20px;color:#fff;margin-bottom:2px;
+    background:linear-gradient(135deg,var(--teal),var(--teal-deep));}
+  .verdict.is-charge{background:linear-gradient(135deg,#C25127,#8F3A18);}
+  .verdict.is-zero{background:linear-gradient(135deg,#5E7170,#465655);}
+  .verdict .kicker{font-size:12px;font-weight:700;letter-spacing:.1em;opacity:.85;}
+  .verdict .amt{font-size:38px;font-weight:800;letter-spacing:-.02em;margin:4px 0 2px;line-height:1.1;}
+  .verdict .amt small{font-size:18px;font-weight:700;opacity:.8;margin-right:4px;}
+  .verdict .note{font-size:13px;opacity:.92;font-weight:500;}
+
+  .ledger{margin-top:14px;}
+  .ledger .lh{font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.06em;
+    padding:0 2px 8px;border-bottom:1px solid var(--line);margin-bottom:4px;}
+  .lrow{display:flex;align-items:flex-start;gap:8px;padding:9px 2px;border-bottom:1px solid var(--line);}
+  .lrow:last-of-type{border-bottom:none;}
+  .lrow .lname{font-size:13.5px;color:var(--ink-soft);font-weight:600;}
+  .lrow .lname .sub{display:block;font-size:11px;color:var(--muted);font-weight:500;margin-top:1px;}
+  .lrow .lval{margin-left:auto;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .lrow.plus .lval{color:var(--refund);}
+  .lrow.minus .lval{color:var(--charge);}
+  .lrow.muted .lname,.lrow.muted .lval{color:var(--muted);font-weight:500;}
+  .lrow.total{border-top:2px solid var(--ink);margin-top:4px;padding-top:12px;}
+  .lrow.total .lname{font-size:15px;font-weight:800;color:var(--ink);}
+  .lrow.total .lval{font-size:17px;font-weight:800;color:var(--ink);}
+
+  .btns{display:flex;gap:8px;margin-top:14px;}
+  .btn{flex:1;font:inherit;font-size:13px;font-weight:700;padding:10px;border-radius:9px;cursor:pointer;
+    border:1px solid var(--line-strong);background:#fff;color:var(--ink-soft);transition:all .15s;}
+  .btn:hover{border-color:var(--teal);color:var(--teal);}
+  .btn.primary{background:var(--teal);color:#fff;border-color:var(--teal);}
+  .btn.primary:hover{background:var(--teal-deep);color:#fff;}
+  .copied{color:var(--teal)!important;border-color:var(--teal)!important;}
+
+  .empty{color:var(--muted);font-size:13px;text-align:center;padding:18px 8px;font-weight:500;}
+
+  /* rules */
+  .rules{margin-top:30px;}
+  .rules .card-h h2{font-size:17px;}
+  details.rule{border:1px solid var(--line);border-radius:11px;background:#fff;margin-bottom:10px;overflow:hidden;}
+  details.rule > summary{list-style:none;cursor:pointer;padding:14px 16px;font-weight:700;font-size:14.5px;
+    display:flex;align-items:center;gap:10px;color:var(--ink);}
+  details.rule > summary::-webkit-details-marker{display:none;}
+  details.rule > summary .ic{width:20px;height:20px;flex:none;color:var(--teal);transition:transform .2s;}
+  details.rule[open] > summary .ic{transform:rotate(90deg);}
+  details.rule > summary .badge{margin-left:auto;font-size:11px;font-weight:700;color:var(--muted);}
+  .rule-body{padding:0 16px 16px;font-size:14px;color:var(--ink-soft);}
+  .rule-body p{margin:0 0 10px;}
+  .rule-body code{background:var(--teal-soft);color:var(--teal-deep);padding:2px 6px;border-radius:5px;
+    font-size:13px;font-family:"SFMono-Regular",Consolas,monospace;font-weight:600;}
+  .rule-body ul{margin:8px 0;padding-left:20px;}
+  .rule-body li{margin:5px 0;}
+  table.def{width:100%;border-collapse:collapse;margin:6px 0 4px;font-size:13.5px;}
+  table.def th,table.def td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
+  table.def th{color:var(--muted);font-weight:700;font-size:12px;background:#FAFBFB;}
+  table.def td:first-child{font-weight:700;color:var(--ink);white-space:nowrap;}
+  .pill{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:6px;}
+  .pill.refund{background:var(--refund-soft);color:var(--refund);}
+  .pill.charge{background:var(--charge-soft);color:var(--charge);}
+  .formula{background:#0E2C2B;color:#CDE8E6;border-radius:10px;padding:14px 16px;font-size:13px;
+    font-family:"SFMono-Regular",Consolas,monospace;line-height:1.85;overflow-x:auto;white-space:pre;}
+  .formula .g{color:#5EB8B5;}
+  .formula .o{color:#E8A36B;}
+
+  .foot{margin-top:34px;text-align:center;font-size:12px;color:var(--muted);}
+
+  @media print{
+    body{background:#fff;}
+    .btns,.foot{display:none;}
+    .card{box-shadow:none;break-inside:avoid;}
+    .result{position:static;}
+  }
+  @media(prefers-reduced-motion:reduce){*{transition:none!important;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <span class="eyebrow">一方 OnePlace · 營運工具</span>
+    <h1 class="title">租客退租費用試算</h1>
+    <p class="sub">填入月租金、退租日與已繳租金到期日，系統自動判斷該<strong>退款</strong>還是<strong>收款</strong>，並列出每一筆明細。下方附完整計算規則，供同事對帳與核對。</p>
+  </header>
+
+  <div class="grid">
+
+    <!-- 輸入 -->
+    <div>
+      <div class="card">
+        <div class="card-h"><span class="n">1</span><h2>基本資料</h2><span class="hint">必填</span></div>
+
+        <div class="field">
+          <label>月租金</label>
+          <div class="with-unit"><span class="unit">NT$</span>
+            <input type="number" id="rent" min="0" step="100" placeholder="例：18000" inputmode="numeric"></div>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label>退租日<span class="desc">退租基準日</span></label>
+            <input type="date" id="moveOut">
+          </div>
+          <div class="field">
+            <label>已繳租金到期日<span class="desc">租金繳到哪天</span></label>
+            <input type="date" id="paidUntil">
+          </div>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label>退租當月天數<span class="desc">自動帶入·可改</span></label>
+            <input type="number" id="monthDays" min="28" max="31" step="1" placeholder="自動">
+          </div>
+          <div class="field">
+            <label>單日平均租金<span class="desc">月租金÷天數</span></label>
+            <input type="text" id="dailyRent" readonly style="background:#F1F5F4;cursor:default;">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><span class="n">2</span><h2>押金與違約金</h2></div>
+
+        <div class="field">
+          <label class="check">
+            <input type="checkbox" id="refundDep" checked>
+            <span class="t">退押金</span>
+            <span class="s" id="depHint">押金 2 個月</span>
+          </label>
+          <div class="desc" style="margin:6px 2px 0;color:var(--muted);font-size:11.5px;">押金遞延／延到下一份合約時請取消勾選</div>
+        </div>
+
+        <div class="row2" style="margin-top:14px;">
+          <div class="field">
+            <label>押金月數</label>
+            <input type="number" id="depMonths" min="0" step="0.5" value="2">
+          </div>
+          <div class="field">
+            <label>押金金額<span class="desc">自動</span></label>
+            <input type="text" id="depAmt" readonly style="background:#F1F5F4;cursor:default;">
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row2">
+          <div class="field">
+            <label>租客違約金<span class="desc">租客賠我們·扣</span></label>
+            <div class="with-unit"><span class="unit">NT$</span>
+              <input type="number" id="tenantPenalty" min="0" step="100" placeholder="0" inputmode="numeric"></div>
+          </div>
+          <div class="field">
+            <label>一方違約金<span class="desc">我們賠租客·加</span></label>
+            <div class="with-unit"><span class="unit">NT$</span>
+              <input type="number" id="companyPenalty" min="0" step="100" placeholder="0" inputmode="numeric"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><span class="n">3</span><h2>其餘扣款／補貼</h2><span class="hint">選填</span></div>
+        <div class="row2">
+          <div class="field">
+            <label>其餘扣款費用<span class="desc">扣</span></label>
+            <div class="with-unit"><span class="unit">NT$</span>
+              <input type="number" id="otherDeduct" min="0" step="100" placeholder="0" inputmode="numeric"></div>
+          </div>
+          <div class="field">
+            <label>扣款原因</label>
+            <input type="text" id="deductReason" placeholder="例：清潔費、修繕">
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>其餘補貼費用<span class="desc">加</span></label>
+            <div class="with-unit"><span class="unit">NT$</span>
+              <input type="number" id="otherSubsidy" min="0" step="100" placeholder="0" inputmode="numeric"></div>
+          </div>
+          <div class="field">
+            <label>補貼原因</label>
+            <input type="text" id="subsidyReason" placeholder="例：提前退租補貼">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 結果 -->
+    <div class="result">
+      <div class="card" style="padding:16px;">
+        <div id="verdict" class="verdict is-zero">
+          <div class="kicker">應收退款總額</div>
+          <div class="amt"><small>NT$</small><span id="vAmt">0</span></div>
+          <div class="note" id="vNote">請先填入基本資料</div>
+        </div>
+
+        <div id="tlBox"></div>
+
+        <div class="ledger" id="ledger">
+          <div class="empty">填入資料後，這裡會顯示完整明細</div>
+        </div>
+
+        <div class="btns">
+          <button class="btn" onclick="window.print()">列印 / 存 PDF</button>
+          <button class="btn primary" id="copyBtn" onclick="copySummary()">複製明細</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 規則說明 -->
+  <div class="rules">
+    <div class="card-h"><span class="n">?</span><h2>退租費用計算規則</h2></div>
+
+    <details class="rule" open>
+      <summary><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>一句話原理<span class="badge">核心</span></summary>
+      <div class="rule-body">
+        <p>以「<strong>退租日</strong>」當基準點，看「<strong>已繳租金到期日</strong>」落在前面還是後面：</p>
+        <table class="def">
+          <tr><th>情境</th><th>條件</th><th>動作</th></tr>
+          <tr><td>已繳未入住</td><td>繳費到期日 <strong>晚於</strong> 退租日（繳太多）</td><td><span class="pill refund">退給租客</span></td></tr>
+          <tr><td>已居住未付</td><td>繳費到期日 <strong>早於</strong> 退租日（繳太少）</td><td><span class="pill charge">向租客收</span></td></tr>
+          <tr><td>剛好結清</td><td>兩者同一天</td><td>不退不收</td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details class="rule">
+      <summary><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>名詞定義</summary>
+      <div class="rule-body">
+        <table class="def">
+          <tr><th>欄位</th><th>意思</th></tr>
+          <tr><td>退租當月天數</td><td>退租日所在月份的總天數（6 月＝30、2 月＝28/29）</td></tr>
+          <tr><td>單日平均租金</td><td><code>月租金 ÷ 退租當月天數</code>，一天值多少錢</td></tr>
+          <tr><td>區間日數</td><td>未繳／多繳的天數（未滿一個月的零頭）</td></tr>
+          <tr><td>區間月數</td><td>跨整月時的完整月份數</td></tr>
+          <tr><td>已繳未入住租金</td><td>租客多繳、要退回的金額</td></tr>
+          <tr><td>已居住未付租金</td><td>租客住了還沒繳、要補收的金額</td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details class="rule">
+      <summary><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>計算步驟</summary>
+      <div class="rule-body">
+        <ul>
+          <li><strong>① 算單日租金</strong>：<code>月租金 ÷ 退租當月天數</code></li>
+          <li><strong>② 抓區間</strong>：比對退租日與已繳到期日，算出區間月數＋區間日數</li>
+          <li><strong>③ 算租金差額</strong>：<code>月租金 × 區間月數 ＋ 單日租金 × 區間日數</code>。晚到期＝退、早到期＝收</li>
+          <li><strong>④ 押金</strong>：退押金則 <code>月租金 × 押金月數</code>；押金遞延則為 0</li>
+          <li><strong>⑤ 加減其餘項目</strong>：違約金、扣款、補貼</li>
+          <li><strong>⑥ 加總</strong>＝應收退款總額</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="rule">
+      <summary><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>正負號規則（加總公式）</summary>
+      <div class="rule-body">
+<div class="formula">應收退款總額（<span class="g">正＝退租客</span> / <span class="o">負＝向租客收</span>）
+
+  <span class="g">＋</span> 押金              （退押金時 月租金×押金月數）
+  <span class="g">＋</span> 已繳未入住租金     （多繳 → 退）
+  <span class="o">－</span> 已居住未付租金     （少繳 → 收）
+  <span class="o">－</span> 租客違約金         （租客賠我們 → 扣）
+  <span class="g">＋</span> 一方違約金         （我們賠租客 → 加）
+  <span class="g">＋</span> 其餘補貼費用       （加）
+  <span class="o">－</span> 其餘扣款費用       （扣）</div>
+      </div>
+    </details>
+
+    <details class="rule">
+      <summary><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>實際範例</summary>
+      <div class="rule-body">
+        <p>假設月租金 <code>18,000</code>、<strong>6/12 退租</strong>、退 2 個月押金，6 月＝30 天，單日租金＝600：</p>
+        <p><span class="pill charge">情境 A · 收款</span> 已繳到 <strong>5/31</strong> → 收 6/1~6/12＝12 天<br>
+        租金差 ＝ 600 × 12 ＝ <strong>－7,200</strong>；加回押金 36,000 → 應退 <strong>28,800</strong></p>
+        <p><span class="pill refund">情境 B · 退款</span> 已繳到 <strong>6/30</strong> → 退 6/13~6/30＝18 天<br>
+        租金差 ＝ 600 × 18 ＝ <strong>＋10,800</strong>；加押金 36,000 → 應退 <strong>46,800</strong></p>
+      </div>
+    </details>
+  </div>
+
+  <div class="foot">一方 OnePlace 內部試算工具 · 數字以實際合約與帳務為準</div>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const ids = ['rent','moveOut','paidUntil','monthDays','depMonths','refundDep',
+               'tenantPenalty','companyPenalty','otherDeduct','otherSubsidy',
+               'deductReason','subsidyReason'];
+  ids.forEach(id => {
+    const el = $(id);
+    el.addEventListener('input', calc);
+    el.addEventListener('change', calc);
+  });
+
+  let monthDaysTouched = false;
+  $('monthDays').addEventListener('input', ()=>{ monthDaysTouched = true; });
+
+  const num = v => { const n = parseFloat(v); return isNaN(n)?0:n; };
+  const fmt = n => Math.round(n).toLocaleString('en-US');
+  const parseDate = v => v ? new Date(v + 'T00:00:00') : null;
+  const daysInMonth = d => new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+  const DAY = 86400000;
+
+  // 把區間 [from,to] 拆成 整月數 + 零頭天數（含頭含尾）
+  function splitPeriod(from, to){
+    if (to < from) return {months:0, days:0};
+    let months = 0;
+    let cursor = new Date(from);
+    while(true){
+      const next = new Date(cursor); next.setMonth(next.getMonth()+1);
+      if (next.getTime() - DAY <= to.getTime()){ months++; cursor = next; }
+      else break;
+    }
+    let days = Math.round((to.getTime() - cursor.getTime())/DAY) + 1;
+    if (days < 0) days = 0;
+    return {months, days};
+  }
+  const fmtMD = d => `${d.getMonth()+1}/${d.getDate()}`;
+
+  let last = null;
+
+  function calc(){
+    const rent = num($('rent').value);
+    const moveOut = parseDate($('moveOut').value);
+    const paidUntil = parseDate($('paidUntil').value);
+
+    // 退租當月天數：未手動改過就自動帶入
+    let mDays = num($('monthDays').value);
+    if (moveOut && !monthDaysTouched){ mDays = daysInMonth(moveOut); $('monthDays').value = mDays; }
+    if (!mDays) mDays = moveOut ? daysInMonth(moveOut) : 30;
+
+    const daily = mDays ? rent/mDays : 0;
+    $('dailyRent').value = rent ? 'NT$ ' + (Math.round(daily*100)/100).toLocaleString('en-US') : '';
+
+    // 押金
+    const depMonths = num($('depMonths').value);
+    const depFull = rent * depMonths;
+    $('depAmt').value = rent ? 'NT$ ' + fmt(depFull) : '';
+    $('depHint').textContent = '押金 ' + (depMonths || 0) + ' 個月';
+    const refundDep = $('refundDep').checked;
+    const deposit = refundDep ? depFull : 0;
+
+    // 其餘
+    const tenantPenalty  = num($('tenantPenalty').value);
+    const companyPenalty = num($('companyPenalty').value);
+    const otherDeduct    = num($('otherDeduct').value);
+    const otherSubsidy   = num($('otherSubsidy').value);
+
+    // 租金差額
+    let prepaidNotLived = 0, livedNotPaid = 0, seg = null;
+    if (moveOut && paidUntil && rent){
+      if (paidUntil > moveOut){
+        const from = new Date(moveOut.getTime()+DAY);
+        const sp = splitPeriod(from, paidUntil);
+        prepaidNotLived = Math.round(rent*sp.months + daily*sp.days);
+        seg = {type:'refund', from, to:paidUntil, months:sp.months, days:sp.days};
+      } else if (paidUntil < moveOut){
+        const from = new Date(paidUntil.getTime()+DAY);
+        const sp = splitPeriod(from, moveOut);
+        livedNotPaid = Math.round(rent*sp.months + daily*sp.days);
+        seg = {type:'charge', from, to:moveOut, months:sp.months, days:sp.days};
+      } else {
+        seg = {type:'zero'};
+      }
+    }
+
+    const total = deposit + prepaidNotLived - livedNotPaid
+                  - tenantPenalty + companyPenalty + otherSubsidy - otherDeduct;
+
+    renderVerdict(total, rent, moveOut, paidUntil);
+    renderTimeline(seg, moveOut, paidUntil);
+    renderLedger({deposit,refundDep,depMonths,depFull,prepaidNotLived,livedNotPaid,seg,
+                  tenantPenalty,companyPenalty,otherSubsidy,otherDeduct,
+                  deductReason:$('deductReason').value,subsidyReason:$('subsidyReason').value,
+                  total,rent});
+
+    last = {total, seg, prepaidNotLived, livedNotPaid, deposit, refundDep,
+            tenantPenalty, companyPenalty, otherSubsidy, otherDeduct, rent,
+            moveOut, paidUntil, daily, mDays};
+  }
+
+  function renderVerdict(total, rent, moveOut, paidUntil){
+    const v = $('verdict');
+    if (!rent || !moveOut || !paidUntil){
+      v.className = 'verdict is-zero';
+      $('vAmt').textContent = '0';
+      $('vNote').textContent = '請先填入基本資料';
+      return;
+    }
+    const abs = Math.abs(Math.round(total));
+    $('vAmt').textContent = fmt(abs);
+    if (Math.round(total) > 0){
+      v.className = 'verdict'; v.querySelector('.kicker').textContent = '應退還租客';
+      $('vNote').textContent = '這筆款項要退給租客';
+    } else if (Math.round(total) < 0){
+      v.className = 'verdict is-charge'; v.querySelector('.kicker').textContent = '應向租客收取';
+      $('vNote').textContent = '租客還需補繳這筆款項';
+    } else {
+      v.className = 'verdict is-zero'; v.querySelector('.kicker').textContent = '結清';
+      $('vNote').textContent = '不退也不收';
+    }
+  }
+
+  function renderTimeline(seg, moveOut, paidUntil){
+    const box = $('tlBox');
+    if (!seg || seg.type === 'zero' || !moveOut || !paidUntil){ box.innerHTML=''; return; }
+    const isRefund = seg.type === 'refund';
+    const cls = isRefund ? 'gap-refund' : 'gap-charge';
+    const lab = isRefund ? '已繳未入住（退）' : '已居住未付（收）';
+    const totalDays = seg.months*0 + seg.days + seg.months; // 顯示用文字另算
+    const spanTxt = (seg.months? seg.months+' 個月 ' : '') + seg.days + ' 天';
+    box.innerHTML = `
+      <div class="tl">
+        <div class="tl-track">
+          <div class="tl-seg ${cls}">
+            <div class="lab">${lab}</div>
+            <div class="day">${spanTxt}</div>
+          </div>
+        </div>
+        <div class="tl-dates">
+          <span>${fmtMD(seg.from)} 起</span>
+          <span>${fmtMD(seg.to)} 迄</span>
+        </div>
+      </div>`;
+  }
+
+  function row(name, sub, val, sign){
+    const cls = sign>0?'plus':(sign<0?'minus':'muted');
+    const pfx = val===0 ? '' : (sign>0?'+ ':(sign<0?'− ':''));
+    return `<div class="lrow ${cls}"><div class="lname">${name}${sub?`<span class="sub">${sub}</span>`:''}</div>
+            <div class="lval">${pfx}NT$ ${fmt(Math.abs(val))}</div></div>`;
+  }
+
+  function renderLedger(d){
+    const L = $('ledger');
+    if (!d.rent){ L.innerHTML = '<div class="empty">填入資料後，這裡會顯示完整明細</div>'; return; }
+    let html = '<div class="lh">明細</div>';
+
+    // 押金
+    if (d.refundDep) html += row('退押金', d.depMonths+' 個月', d.depFull, 1);
+    else html += row('押金（遞延，不退）', '延至下一份合約', 0, 0);
+
+    // 租金差
+    if (d.prepaidNotLived>0){
+      const s = d.seg;
+      html += row('已繳未入住租金', `${fmtMD(s.from)}~${fmtMD(s.to)}・${(s.months?s.months+'月':'')}${s.days}天`, d.prepaidNotLived, 1);
+    }
+    if (d.livedNotPaid>0){
+      const s = d.seg;
+      html += row('已居住未付租金', `${fmtMD(s.from)}~${fmtMD(s.to)}・${(s.months?s.months+'月':'')}${s.days}天`, d.livedNotPaid, -1);
+    }
+    if (d.prepaidNotLived===0 && d.livedNotPaid===0 && d.seg && d.seg.type==='zero')
+      html += row('租金差額', '剛好結清', 0, 0);
+
+    if (d.tenantPenalty>0)  html += row('租客違約金', '租客賠付', d.tenantPenalty, -1);
+    if (d.companyPenalty>0) html += row('一方違約金', '公司賠付', d.companyPenalty, 1);
+    if (d.otherSubsidy>0)   html += row('其餘補貼', d.subsidyReason||'', d.otherSubsidy, 1);
+    if (d.otherDeduct>0)    html += row('其餘扣款', d.deductReason||'', d.otherDeduct, -1);
+
+    // 總計
+    const t = Math.round(d.total);
+    const tcls = t>0?'plus':(t<0?'minus':'muted');
+    const tpfx = t>0?'退 ':(t<0?'收 ':'');
+    html += `<div class="lrow total ${tcls}"><div class="lname">應收退款總額</div>
+             <div class="lval">${tpfx}NT$ ${fmt(Math.abs(t))}</div></div>`;
+    L.innerHTML = html;
+  }
+
+  window.copySummary = function(){
+    if (!last || !last.rent){ return; }
+    const t = Math.round(last.total);
+    const verdict = t>0?`應退還租客 NT$ ${fmt(Math.abs(t))}`
+                  : t<0?`應向租客收取 NT$ ${fmt(Math.abs(t))}`
+                  : '結清，不退不收';
+    let lines = ['【租客退租費用試算】', '應收退款總額：' + verdict, '─────────'];
+    if (last.refundDep) lines.push('退押金：+' + fmt(last.deposit));
+    if (last.prepaidNotLived>0) lines.push('已繳未入住租金：+' + fmt(last.prepaidNotLived));
+    if (last.livedNotPaid>0)    lines.push('已居住未付租金：−' + fmt(last.livedNotPaid));
+    if (last.tenantPenalty>0)   lines.push('租客違約金：−' + fmt(last.tenantPenalty));
+    if (last.companyPenalty>0)  lines.push('一方違約金：+' + fmt(last.companyPenalty));
+    if (last.otherSubsidy>0)    lines.push('其餘補貼：+' + fmt(last.otherSubsidy));
+    if (last.otherDeduct>0)     lines.push('其餘扣款：−' + fmt(last.otherDeduct));
+    const txt = lines.join('\n');
+    navigator.clipboard.writeText(txt).then(()=>{
+      const b = $('copyBtn'); const o = b.textContent;
+      b.textContent = '已複製 ✓'; b.classList.add('copied');
+      setTimeout(()=>{ b.textContent=o; b.classList.remove('copied'); }, 1600);
+    });
+  };
+
+  calc();
+})();
+</script>
+</body>
+</html>
